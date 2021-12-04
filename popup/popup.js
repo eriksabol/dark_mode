@@ -1,43 +1,50 @@
-const darkmode_toggle = document.getElementById("invert-toggle");
-const html = document.getElementById("my-body");
+import { injectCSS } from "./helpers.js";
 
-chrome.storage.sync.get("color", ({ color }) => {
-  html.style.backgroundColor = color;
-});
+let app = {
+  init: () => {
+    // cache some element references
+    const darkmode_toggle = document.getElementById("invert-toggle");
+    const html = document.getElementById("my-body");
 
-let buttonOn = false;
+    chrome.runtime.sendMessage({ fn: "getButtonOn" }, (response) => {
+      darkmode_toggle.checked = response;
+    });
 
-const getCurrentTab = async () => {
-  let queryOptions = { active: true, currentWindow: true };
-  let [tab] = await chrome.tabs.query(queryOptions);
-  return tab;
-};
+    chrome.storage.sync.get("color", ({ color }) => {
+      html.style.backgroundColor = color;
+    });
 
-const injectCSS = async (css) => {
-  const activeTab = await getCurrentTab();
-  if (!activeTab) return;
-  chrome.scripting.insertCSS({
-    css,
-    target: { tabId: activeTab.id },
-  });
-};
-
-darkmode_toggle.addEventListener("click", () => {
-  if (buttonOn) {
-    injectCSS(`html {
-      filter: none;
-  }`);
-    injectCSS(`img, image, video {
-    filter: none;
-}`);
-    buttonOn = false;
-  } else {
-    injectCSS(`html {
+    darkmode_toggle.addEventListener("click", () => {
+      if (darkmode_toggle.checked) {
+        injectCSS(`html {
+          filter: none;
+      }`);
+        injectCSS(`img, image, video {
+        filter: none;
+    }`);
+        console.log("buttonOn ", darkmode_toggle.checked);
+        chrome.runtime.sendMessage({
+          fn: "setButtonOn",
+          state: darkmode_toggle.checked,
+        });
+      } else {
+        injectCSS(`html {
+        filter: invert(1) hue-rotate(180deg);
+    }`);
+        injectCSS(`img, image, video {
     filter: invert(1) hue-rotate(180deg);
-}`);
-    injectCSS(`img, image, video {
-filter: invert(1) hue-rotate(180deg);
-}`);
-    buttonOn = true;
-  }
+    }`);
+        console.log("buttonOn ", darkmode_toggle.checked);
+        chrome.runtime.sendMessage({
+          fn: "setButtonOn",
+          state: darkmode_toggle.checked,
+        });
+      }
+    });
+  },
+};
+
+//app start
+document.addEventListener("DOMContentLoaded", () => {
+  app.init();
 });
